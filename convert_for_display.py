@@ -109,7 +109,9 @@ def convert_video(src: Path, dst: Path) -> None:
         "-c:v", "libx264",
         "-profile:v", "baseline",
         "-level", "3.0",
-        "-vf", f"scale={tw}:{th}",
+        "-vf", f"scale={tw}:{th},setsar=1",
+        "-r", "24",                  # cap at 24 fps — smoother over WiFi than 30
+        "-g", "24",                  # keyframe every 1 s at 24 fps
         "-an",                       # strip audio
         "-map", "0:v:0",             # video stream only — drops tmcd timecode track
         "-map_chapters", "-1",       # strip chapter metadata
