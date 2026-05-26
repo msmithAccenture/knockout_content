@@ -107,9 +107,12 @@ def convert_video(src: Path, dst: Path) -> None:
         "ffmpeg",
         "-i", str(src),
         "-c:v", "libx264",
+        "-level", "3.0",
+        "-bf", "0",                  # no B-frames — simpler decode path for glasses HW decoder
+        "-refs", "1",                # single reference frame — reduces decoder buffer demand
         "-vf", f"scale={tw}:{th},setsar=1",
-        "-r", "24",                  # cap at 24 fps — smoother over WiFi than 30
-        "-g", "24",                  # keyframe every 1 s at 24 fps
+        "-r", "30",                  # 30 fps — matches display refresh rate
+        "-g", "30",                  # keyframe every 1 s at 30 fps
         "-an",                       # strip audio
         "-map", "0:v:0",             # video stream only — drops tmcd timecode track
         "-map_chapters", "-1",       # strip chapter metadata
