@@ -107,6 +107,7 @@ def convert_video(src: Path, dst: Path) -> None:
         "ffmpeg",
         "-i", str(src),
         "-c:v", "libx264",
+        "-profile:v", "baseline",
         "-level", "3.0",
         "-bf", "0",                  # no B-frames — simpler decode path for glasses HW decoder
         "-refs", "1",                # single reference frame — reduces decoder buffer demand
