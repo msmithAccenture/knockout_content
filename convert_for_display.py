@@ -106,8 +106,8 @@ def convert_video(src: Path, dst: Path) -> None:
     cmd = [
         "ffmpeg",
         "-i", str(src),
+        "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000",
         "-c:v", "libx264",
-        "-profile:v", "baseline",
         "-level", "3.0",
         "-bf", "0",                  # no B-frames — simpler decode path for glasses HW decoder
         "-refs", "1",                # single reference frame — reduces decoder buffer demand
@@ -117,11 +117,16 @@ def convert_video(src: Path, dst: Path) -> None:
         "-vf", f"scale={tw}:{th},setsar=1",
         "-r", "15",                  # 15 fps — doubles per-frame decode budget vs 30
         "-g", "15",                  # keyframe every 1 s at 15 fps
-        "-an",                       # strip audio
-        "-map", "0:v:0",             # video stream only — drops tmcd timecode track
+        "-c:a", "aac",               # silent AAC track — may help player timing/sync
+        "-b:a", "32k",
+        "-ar", "48000",
+        "-ac", "2",
+        "-map", "0:v:0",
+        "-map", "1:a:0",             # map silent audio from lavfi null source
         "-map_chapters", "-1",       # strip chapter metadata
         "-movflags", "+faststart",   # moov atom at front (required for streaming)
         "-pix_fmt", "yuv420p",
+        "-shortest",                 # end output when video stream ends
         "-y",
         str(dst),
     ]
