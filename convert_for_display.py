@@ -19,7 +19,7 @@ Video spec (fetched by glasses over WiFi):
     - H.264 Constrained Baseline profile, Level 3.0
     - Max 400 px per side, max 70,000 total pixels (≈ 265×265 square)
     - faststart moov atom (required for streaming)
-    - No audio track (conflicts with ElevenLabs audio)
+    - No audio track (silent AAC added ~38% file size with no observed timing benefit)
     - No tmcd timecode track (causes playback issues)
     - yuv420p pixel format
     - Shorter clips (≤ 10 s) stream more smoothly than longer ones
@@ -106,7 +106,6 @@ def convert_video(src: Path, dst: Path) -> None:
     cmd = [
         "ffmpeg",
         "-i", str(src),
-        "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000",
         "-c:v", "libx264",
         "-level", "3.0",
         "-bf", "0",                  # no B-frames — simpler decode path for glasses HW decoder
@@ -117,16 +116,11 @@ def convert_video(src: Path, dst: Path) -> None:
         "-vf", f"scale={tw}:{th},setsar=1",
         "-r", "15",                  # 15 fps — doubles per-frame decode budget vs 30
         "-g", "15",                  # keyframe every 1 s at 15 fps
-        "-c:a", "aac",               # silent AAC track — may help player timing/sync
-        "-b:a", "32k",
-        "-ar", "48000",
-        "-ac", "2",
+        "-an",                       # no audio track — silent AAC added ~38% file size with no timing benefit
         "-map", "0:v:0",
-        "-map", "1:a:0",             # map silent audio from lavfi null source
         "-map_chapters", "-1",       # strip chapter metadata
         "-movflags", "+faststart",   # moov atom at front (required for streaming)
         "-pix_fmt", "yuv420p",
-        "-shortest",                 # end output when video stream ends
         "-y",
         str(dst),
     ]
