@@ -33,7 +33,7 @@ from pathlib import Path
 
 # ---------- config ----------
 IMAGE_MAX_SIDE   = 600
-VIDEO_MAX_SIDE   = 400
+VIDEO_MAX_SIDE   = 200
 VIDEO_MAX_PIXELS = 70_000
 OUTPUT_DIR       = Path(__file__).resolve().parent.parent / "knockout_content"
 
@@ -111,9 +111,12 @@ def convert_video(src: Path, dst: Path) -> None:
         "-level", "3.0",
         "-bf", "0",                  # no B-frames — simpler decode path for glasses HW decoder
         "-refs", "1",                # single reference frame — reduces decoder buffer demand
+        "-b:v", "150k",              # target bitrate — keeps asset small for BT transport
+        "-maxrate", "200k",          # hard ceiling on instantaneous bitrate
+        "-bufsize", "400k",          # encoder lookahead buffer (2× maxrate)
         "-vf", f"scale={tw}:{th},setsar=1",
-        "-r", "30",                  # 30 fps — matches display refresh rate
-        "-g", "30",                  # keyframe every 1 s at 30 fps
+        "-r", "15",                  # 15 fps — doubles per-frame decode budget vs 30
+        "-g", "15",                  # keyframe every 1 s at 15 fps
         "-an",                       # strip audio
         "-map", "0:v:0",             # video stream only — drops tmcd timecode track
         "-map_chapters", "-1",       # strip chapter metadata
