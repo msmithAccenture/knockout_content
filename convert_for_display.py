@@ -13,7 +13,8 @@ Output filenames:
     <stem>_display.mp4   (videos)
 
 Image spec (sent over BTC, no WiFi needed):
-    Any format → PNG, fit within 600×600, aspect ratio preserved.
+    Any format → JPEG, fit within 400×400, aspect ratio preserved.
+    Quality 85. Target file size: < 100 KB — flagged with ! if missed.
 
 Video spec (fetched by glasses over WiFi):
     - H.264 Constrained Baseline profile, Level 3.0
@@ -32,7 +33,7 @@ import sys
 from pathlib import Path
 
 # ---------- config ----------
-IMAGE_MAX_SIDE   = 600
+IMAGE_MAX_SIDE   = 400
 VIDEO_MAX_SIDE   = 200
 VIDEO_MAX_PIXELS = 70_000
 OUTPUT_DIR       = Path(__file__).resolve().parent.parent / "knockout_content"
@@ -56,11 +57,13 @@ def convert_image(src: Path, dst: Path) -> None:
     except ImportError:
         sys.exit("Pillow is required for image conversion: pip install pillow")
 
-    img = Image.open(src)
+    img = Image.open(src).convert("RGB")
     orig_w, orig_h = img.size
     img.thumbnail((IMAGE_MAX_SIDE, IMAGE_MAX_SIDE), Image.LANCZOS)
-    img.save(dst, "PNG", optimize=True)
-    print(f"  {orig_w}x{orig_h} -> {img.size[0]}x{img.size[1]}  saved: {dst.name}")
+    img.save(dst, "JPEG", quality=85, optimize=True)
+    size_kb = dst.stat().st_size / 1024
+    flag = " !" if size_kb > 100 else ""
+    print(f"  {orig_w}x{orig_h} -> {img.size[0]}x{img.size[1]}  {size_kb:.1f} KB{flag}  saved: {dst.name}")
 
 
 def get_video_dims(src: Path) -> tuple[int, int]:
@@ -155,7 +158,7 @@ def main() -> None:
 
         try:
             if ext in IMAGE_EXTS:
-                dst = OUTPUT_DIR / f"{stem}_display.png"
+                dst = OUTPUT_DIR / f"{stem}_display.jpg"
                 convert_image(src, dst)
 
             elif ext in VIDEO_EXTS:
