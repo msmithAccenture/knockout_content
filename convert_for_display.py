@@ -115,10 +115,10 @@ def convert_video(src: Path, dst: Path) -> None:
         "-refs", "1",                # single reference frame — reduces decoder buffer demand
         "-b:v", "50k",               # target bitrate — sized for BT transport headroom
         "-maxrate", "75k",           # hard ceiling on instantaneous bitrate
-        "-bufsize", "50k",           # tight VBV buffer — forces even bitrate distribution for BT streaming
+        "-bufsize", "150k",          # 2× maxrate VBV buffer — smooths bitrate spikes across scene changes
         "-vf", f"scale={tw}:{th},setsar=1",
         "-r", "15",                  # 15 fps — doubles per-frame decode budget vs 30
-        "-g", "15",                  # keyframe every 1 s at 15 fps
+        "-g", "30",                  # keyframe every 2 s at 15 fps — halves keyframe overhead
         "-an",                       # no audio track — silent AAC added ~38% file size with no timing benefit
         "-map", "0:v:0",
         "-map_chapters", "-1",       # strip chapter metadata
