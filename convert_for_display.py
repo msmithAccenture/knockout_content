@@ -113,9 +113,9 @@ def convert_video(src: Path, dst: Path) -> None:
         "-level", "3.0",
         "-bf", "0",                  # no B-frames — simpler decode path for glasses HW decoder
         "-refs", "1",                # single reference frame — reduces decoder buffer demand
-        "-b:v", "75k",               # target bitrate — sized for ~80kbps effective transport
-        "-maxrate", "100k",          # hard ceiling on instantaneous bitrate
-        "-bufsize", "75k",           # tight VBV buffer — forces even bitrate distribution for BT streaming
+        "-b:v", "50k",               # target bitrate — sized for BT transport headroom
+        "-maxrate", "75k",           # hard ceiling on instantaneous bitrate
+        "-bufsize", "50k",           # tight VBV buffer — forces even bitrate distribution for BT streaming
         "-vf", f"scale={tw}:{th},setsar=1",
         "-r", "15",                  # 15 fps — doubles per-frame decode budget vs 30
         "-g", "15",                  # keyframe every 1 s at 15 fps
