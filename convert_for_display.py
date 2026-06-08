@@ -20,7 +20,8 @@ Video spec (fetched by glasses over WiFi):
     - H.264 Constrained Baseline profile, Level 3.0
     - Max 400 px per side, max 70,000 total pixels (≈ 265×265 square)
     - faststart moov atom (required for streaming)
-    - No audio track (silent AAC added ~38% file size with no observed timing benefit)
+    - Silent mono AAC audio track at 8 kbps / 22050 Hz (~5 KB per 5 s clip) — provides
+      audio clock reference to encourage real-time playback on the glasses
     - No tmcd timecode track (causes playback issues)
     - yuv420p pixel format
     - Shorter clips (≤ 10 s) stream more smoothly than longer ones
@@ -109,6 +110,7 @@ def convert_video(src: Path, dst: Path) -> None:
     cmd = [
         "ffmpeg",
         "-i", str(src),
+        "-f", "lavfi", "-i", "anullsrc=channel_layout=mono:sample_rate=22050",
         "-c:v", "libx264",
         "-level", "3.0",
         "-bf", "0",                  # no B-frames — simpler decode path for glasses HW decoder
@@ -119,8 +121,13 @@ def convert_video(src: Path, dst: Path) -> None:
         "-vf", f"scale={tw}:{th},setsar=1",
         "-r", "15",                  # 15 fps — doubles per-frame decode budget vs 30
         "-g", "105",                 # keyframe every 7 s at 15 fps — one initial IDR for most short clips
-        "-an",                       # no audio track — silent AAC added ~38% file size with no timing benefit
+        "-c:a", "aac",               # silent mono audio track — provides clock reference for real-time playback
+        "-b:a", "8k",                # 8 kbps — ~5 KB overhead for a 5 s clip
+        "-ac", "1",                  # mono
+        "-ar", "22050",              # low sample rate to minimise data
         "-map", "0:v:0",
+        "-map", "1:a:0",
+        "-shortest",                 # stop encoding when the video (shortest input) ends
         "-map_chapters", "-1",       # strip chapter metadata
         "-movflags", "+faststart",   # moov atom at front (required for streaming)
         "-pix_fmt", "yuv420p",
