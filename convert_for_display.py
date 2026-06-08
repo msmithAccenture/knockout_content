@@ -118,7 +118,7 @@ def convert_video(src: Path, dst: Path) -> None:
         "-bufsize", "150k",          # 2× maxrate VBV buffer — smooths bitrate spikes across scene changes
         "-vf", f"scale={tw}:{th},setsar=1",
         "-r", "15",                  # 15 fps — doubles per-frame decode budget vs 30
-        "-g", "30",                  # keyframe every 2 s at 15 fps — halves keyframe overhead
+        "-g", "105",                 # keyframe every 7 s at 15 fps — one initial IDR for most short clips
         "-an",                       # no audio track — silent AAC added ~38% file size with no timing benefit
         "-map", "0:v:0",
         "-map_chapters", "-1",       # strip chapter metadata
