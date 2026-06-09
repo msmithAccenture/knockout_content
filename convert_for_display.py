@@ -6,7 +6,10 @@ Converts images or videos to the specs required by the Meta Ray-Ban glasses disp
 Output is written to ../knockout_content/ (relative to this script).
 
 Usage:
-    python convert_for_display.py <path> [<path> ...]
+    python convert_for_display.py [--no-audio] <path> [<path> ...]
+
+Options:
+    --no-audio   Omit the silent audio track (smaller file, may affect playback timing).
 
 Output filenames:
     <stem>_display.png   (images)
@@ -27,6 +30,7 @@ Video spec (fetched by glasses over WiFi):
     - Shorter clips (≤ 10 s) stream more smoothly than longer ones
 """
 
+import argparse
 import json
 import math
 import subprocess
@@ -102,15 +106,32 @@ def calc_target_dims(w: int, h: int) -> tuple[int, int]:
     return new_w, new_h
 
 
-def convert_video(src: Path, dst: Path) -> None:
+def convert_video(src: Path, dst: Path, include_audio: bool = True) -> None:
     w, h = get_video_dims(src)
     tw, th = calc_target_dims(w, h)
-    print(f"  source: {w}x{h} ({w*h:,} px)  ->  target: {tw}x{th} ({tw*th:,} px)")
+    print(f"  source: {w}x{h} ({w*h:,} px)  ->  target: {tw}x{th} ({tw*th:,} px)  audio={'yes' if include_audio else 'no'}")
+
+    inputs = ["-i", str(src)]
+    if include_audio:
+        inputs += ["-f", "lavfi", "-i", "anullsrc=channel_layout=mono:sample_rate=22050"]
+
+    audio_args = (
+        [
+            "-c:a", "aac",     # silent mono audio track — provides clock reference for real-time playback
+            "-b:a", "8k",      # 8 kbps — ~5 KB overhead for a 5 s clip
+            "-ac", "1",        # mono
+            "-ar", "22050",    # low sample rate to minimise data
+            "-map", "0:v:0",
+            "-map", "1:a:0",
+            "-shortest",       # stop encoding when the video (shortest input) ends
+        ]
+        if include_audio
+        else ["-an", "-map", "0:v:0"]
+    )
 
     cmd = [
         "ffmpeg",
-        "-i", str(src),
-        "-f", "lavfi", "-i", "anullsrc=channel_layout=mono:sample_rate=22050",
+        *inputs,
         "-c:v", "libx264",
         "-level", "3.0",
         "-bf", "0",                  # no B-frames — simpler decode path for glasses HW decoder
@@ -121,13 +142,7 @@ def convert_video(src: Path, dst: Path) -> None:
         "-vf", f"scale={tw}:{th},setsar=1",
         "-r", "15",                  # 15 fps — doubles per-frame decode budget vs 30
         "-g", "105",                 # keyframe every 7 s at 15 fps — one initial IDR for most short clips
-        "-c:a", "aac",               # silent mono audio track — provides clock reference for real-time playback
-        "-b:a", "8k",                # 8 kbps — ~5 KB overhead for a 5 s clip
-        "-ac", "1",                  # mono
-        "-ar", "22050",              # low sample rate to minimise data
-        "-map", "0:v:0",
-        "-map", "1:a:0",
-        "-shortest",                 # stop encoding when the video (shortest input) ends
+        *audio_args,
         "-map_chapters", "-1",       # strip chapter metadata
         "-movflags", "+faststart",   # moov atom at front (required for streaming)
         "-pix_fmt", "yuv420p",
@@ -142,13 +157,15 @@ def convert_video(src: Path, dst: Path) -> None:
 
 
 def main() -> None:
-    if len(sys.argv) < 2:
-        print(__doc__)
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--no-audio", action="store_true", help="Omit the silent audio track from video output")
+    parser.add_argument("files", nargs="+", metavar="PATH", help="Input file(s) to convert")
+    args = parser.parse_args()
 
+    include_audio = not args.no_audio
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    for arg in sys.argv[1:]:
+    for arg in args.files:
         src = Path(arg)
         if not src.is_absolute():
             src = Path.cwd() / src
@@ -170,7 +187,7 @@ def main() -> None:
 
             elif ext in VIDEO_EXTS:
                 dst = OUTPUT_DIR / f"{stem}_display.mp4"
-                convert_video(src, dst)
+                convert_video(src, dst, include_audio=include_audio)
 
             else:
                 print(f"  skipped — unrecognised extension ({ext})")
